@@ -82,12 +82,13 @@ var vbext_ct_Document    = 100;
 
 // FileSystemObject (ref: http://msdn.microsoft.com/en-us/library/hww8txat%28v=vs.84%29.aspx)
 var fso = WScript.CreateObject("Scripting.FileSystemObject");
+var shellobj = WScript.CreateObject("WScript.Shell");
 
 var forReading   = 1;
 var forWriting   = 2;
 var forAppending = 8;
 
-var scriptPath = WScript.ScriptFullName;
+var currentDirectory = shellobj.CurrentDirectory;
 
 var args = (function() {
     var a = new Array(WScript.Arguments.length);
@@ -221,7 +222,7 @@ CmdParam.prototype.parse = function(args) {
 };
 
 var Config = function(binary, source, target, binbak) {
-    var root = fso.GetParentFolderName(scriptPath);
+    var root = currentDirectory;
     this.bin = (isPathRooted(binary)) ? binary : fso.BuildPath(root, binary);
     this.src = (isPathRooted(source)) ? source : fso.BuildPath(root, source);
     this.target = (isPathRooted(target)) ? tareget : fso.BuildPath(root, target)
