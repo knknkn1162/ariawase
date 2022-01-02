@@ -21,6 +21,7 @@ Usage: cscript vbac.wsf &lt;command&gt; [&lt;options&gt;]
 Commands:
   combine           Import all VBComponents
   decombine         Export all VBComponents
+  run               Run macro
   clear             Remove all VBComponents
   help              Display this help message
 
@@ -31,6 +32,8 @@ Options:
                     (default: src)
   /vbaproj          Use .vbaproj file
   /dbcompact        With Access DB compaction
+  /target office           Specify run macro file
+  /entrypoint func       macro entrypoint(default: main)
 </resource>
 <script language="JScript">
 <![CDATA[
@@ -217,10 +220,11 @@ CmdParam.prototype.parse = function(args) {
     return this.parameters;
 };
 
-var Config = function(binary, source, binbak) {
+var Config = function(binary, source, target, binbak) {
     var root = fso.GetParentFolderName(scriptPath);
     this.bin = (isPathRooted(binary)) ? binary : fso.BuildPath(root, binary);
     this.src = (isPathRooted(source)) ? source : fso.BuildPath(root, source);
+    this.target = (isPathRooted(target)) ? tareget : fso.BuildPath(root, target)
     this.bak = (!binbak.flag) ? undefined
              : (isPathRooted(binbak.value)) ? binbak.value
              : fso.BuildPath(root, binbak.value);
@@ -497,6 +501,9 @@ Office.prototype.clear = function(tbin) {
     
     println();
 };
+Office.prototype.run = function() {
+    throw "Not Implemented";
+}
 
 var Dummy = function() {};
 Dummy.prototype = new Office();
@@ -649,6 +656,28 @@ Excel.prototype.loanOfOfficeDocument = function(path, isCreate, callback) {
     
     return ret;
 };
+Excel.prototype.run = function(path) {
+    var xlApp, xlBook, ret;
+    var self = this;
+    var isCreate = false;
+    var entrypoint = self.cmdParam.entrypoint;
+    try {
+        xlApp = new ActiveXObject(this.getProgID());
+        xlApp.DisplayAlerts = false;
+        xlApp.EnableEvents  = false;
+	xlApp.Visible = true;
+    try {
+        xlBook = (isCreate) ? this.createOpenFile(xlApp, path) : xlApp.Workbooks.Open(path);;
+        this.checkMacroSecurity(xlBook);
+        println("run macro:" + entrypoint)
+        xlApp.run(entrypoint)
+	println("end macro. Press key..") 
+	WScript.StdIn.ReadLine();
+    } finally { if (xlBook != null) xlBook.Close(); }
+    } finally { if (xlApp  != null) xlApp.Quit();   }
+
+    return ret;
+}
 Excel.prototype.importDocument = function(path, xlBook) {
     var compos = xlBook.VBProject.VBComponents;
     var impCompo = compos.Import(path);
@@ -1001,6 +1030,12 @@ Command.prototype.clear = function() {
             office.clear(path);
         });
 };
+Command.prototype.run = function() {
+    var hlp = this.__helper;
+    var conf = hlp.config;
+    var office = hlp.createOffice(conf.target);
+    office.run(conf.target);
+};
 Command.prototype.acdoc = function() {
     var hlp  = this.__helper;
     var conf = hlp.config;
@@ -1028,7 +1063,7 @@ Command.prototype.acdoc = function() {
 
 var CommandHelper = function(param) {
     this.parameter = param;
-    this.config  = new Config(param.binary, param.source, param.binbak);
+    this.config  = new Config(param.binary, param.source, param.target, param.binbak);
     this.command = new Command(this);
 };
 CommandHelper.prototype.getAppName = function(fname) {
@@ -1125,6 +1160,8 @@ function main(args) {
             commandType: "help",
             binary:      "bin",
             source:      "src",
+            target:      "dummy",
+            entrypoint:  "main",
             binbak:      new Conditional("bak"),
             vbaproj:     false,
             incQuery:    false,
