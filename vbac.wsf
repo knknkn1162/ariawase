@@ -26,8 +26,7 @@ Commands:
   help              Display this help message
 
 Options:
-  /binary:&lt;dir&gt;     Specify directory of macro-enabled Office files
-                    (default: bin)
+  /binary:&lt;file&gt;     Specify macro-enabled Office files
   /source:&lt;dir&gt;     Specify directory of source code files
                     (default: src)
   /vbaproj          Use .vbaproj file
@@ -222,16 +221,28 @@ CmdParam.prototype.parse = function(args) {
 };
 
 var Config = function(binary, source, target, binbak) {
+    // validation
+    if(!fso.FileExists(binary)) {
+        println("[ERROR] /binary doesn't exist!");
+        WScript.Quit(1);
+    }
+    if(fso.FolderExists(binary)) {
+        println("[ERROR] /binary must be file");
+        WScript.Quit(1);
+    }
+    if(fso.FileExists(source)) {
+        println("[ERROR] /source must be folder");
+        WScript.Quit(1);
+    }
+
     var root = currentDirectory;
-    this.bin = (isPathRooted(binary)) ? binary : fso.BuildPath(root, binary);
+    this.bin = fso.BuildPath(root, binary);
     this.src = (isPathRooted(source)) ? source : fso.BuildPath(root, source);
     this.target = (isPathRooted(target)) ? target : fso.BuildPath(root, target)
     this.bak = (!binbak.flag) ? undefined
              : (isPathRooted(binbak.value)) ? binbak.value
              : fso.BuildPath(root, binbak.value);
 };
-Config.prototype.getBins = function() { return fso.GetFolder(this.bin).Files; };
-Config.prototype.getSrcs = function() { return fso.GetFolder(this.src).SubFolders; };
 
 var VBAProjFile = function(vbproj, srcdir) {
     this.vbproj   = vbproj;
@@ -506,6 +517,7 @@ Office.prototype.decombine = function(tbin, tsrc) {
     this.loanOfOfficeDocument(tbin, false, function(ofDoc) {
         self.cleanupSource(tsrc);
         if (self.cmdParam.vbaproj) self.exportProject(ofDoc.VBProject, tsrc);
+        println("[INFO] export root dir: " + tsrc + "\\");
         self.exportSource(ofDoc, tsrc);
     });
     
@@ -1027,29 +1039,40 @@ Command.prototype.help = function() {
 Command.prototype.combine = function() {
     var hlp  = this.__helper;
     var conf = hlp.config;
-    if (conf.bak !== undefined && fso.FolderExists(conf.bin)) {
+    if (conf.bak !== undefined && fso.FileExists(conf.bin)) {
         if (!fso.FolderExists(conf.bak)) fso.CreateFolder(conf.bak);
         
         var bkdir = fso.BuildPath(conf.bak, dateTimeString(new Date()));
         fso.CreateFolder(bkdir);
-        fso.CopyFile(fso.BuildPath(conf.bin, "*.*"), bkdir + "\\");
+        fso.CopyFile(conf.bin, bkdir + "\\");
     }
-    hlp.combineImpl(conf.src, conf.bin, function() { return conf.getSrcs(); });
+
+    var subdir = fso.BuildPath(conf.src, fso.GetFileName(conf.bin))
+    // if input source does not exists, early return
+    if(!fso.FolderExists(subdir)) {
+        println("[ERROR] input sources are empty!");
+        WScript.Quit(2);
+    }
+
+    var office  = hlp.createOffice(conf.bin);
+    office.combine(subdir, conf.bin);
 };
 Command.prototype.decombine = function() {
     var hlp  = this.__helper;
     var conf = hlp.config;
-    hlp.combineImpl(conf.bin, conf.src, function() { return conf.getBins(); });
+    // create
+    var subdir = fso.BuildPath(conf.src, fso.GetFileName(conf.bin))
+    if(!fso.FolderExists(subdir)) fso.CreateFolder(subdir);
+
+    var office  = hlp.createOffice(conf.bin);
+    office.decombine(conf.bin, subdir);
 };
 Command.prototype.clear = function() {
     var hlp  = this.__helper;
     var conf = hlp.config;
-    hlp.iterTarget(
-        function() { return conf.getBins(); },
-        function(path) {
-            var office = hlp.createOffice(path);
-            office.clear(path);
-        });
+    this.bin
+    var office = hlp.createOffice(this.bin);
+    office.clear(this.bin);
 };
 Command.prototype.run = function() {
     var hlp = this.__helper;
@@ -1061,25 +1084,21 @@ Command.prototype.acdoc = function() {
     var hlp  = this.__helper;
     var conf = hlp.config;
     
-    hlp.iterTarget(
-        function() { return conf.getBins(); },
-        function(path) {
-            if (hlp.getAppName(path) != 'Access') return false;
-            
-            println("> Target: " + fso.GetFileName(path));
-            var docs;
-            var acc = hlp.createOffice(path);
-            acc.loanOfAcProj(path, true, function(acProj) {
-                var acApp = acProj.Application;
-                docs = acc.getAcDocs(acApp);
-            });
-            
-            for (var i = 0; i < docs.length; i++) {
-                var doc = docs[i];
-                println("- " + doc.container + ": " + doc.name);
-            }
-            println();
-        });
+    var path = this.bin;
+    if (hlp.getAppName(path) != 'Access') return false;
+    println("> Target: " + fso.GetFileName(path));
+    var docs;
+    var acc = hlp.createOffice(path);
+    acc.loanOfAcProj(path, true, function(acProj) {
+        var acApp = acProj.Application;
+        docs = acc.getAcDocs(acApp);
+    });
+
+    for (var i = 0; i < docs.length; i++) {
+        var doc = docs[i];
+        println("- " + doc.container + ": " + doc.name);
+    }
+    println();
 };
 
 var CommandHelper = function(param) {
@@ -1134,22 +1153,7 @@ CommandHelper.prototype.iterTarget = function(getPaths, action) {
         return action(fl.Path);
     });
 };
-CommandHelper.prototype.combineImpl = function(fromDir, toDir, getPaths) {
-    if (!fso.FolderExists(fromDir)) {
-        println("directory '" + fromDir + "' not exists.");
-        return;
-    }
-    
-    if (!fso.FolderExists(toDir)) fso.CreateFolder(toDir);
-    
-    var self = this;
-    this.iterTarget(getPaths, function(fromPath) {
-        var toPath  = fso.BuildPath(toDir, fso.GetFileName(fromPath));
-        var office  = self.createOffice(fromPath);
-        var param   = self.parameter;
-        office[param.commandType](fromPath, toPath);
-    });
-};
+
 CommandHelper.prototype.hasCommand = function(cmdType) {
     return cmdType in this.command
         && this.command[cmdType] != this;
