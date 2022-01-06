@@ -1068,9 +1068,8 @@ Command.prototype.decombine = function() {
 Command.prototype.clear = function() {
     var hlp  = this.__helper;
     var conf = hlp.config;
-    this.bin
-    var office = hlp.createOffice(this.bin);
-    office.clear(this.bin);
+    var office = hlp.createOffice(conf.bin);
+    office.clear(conf.bin);
 };
 Command.prototype.run = function() {
     var hlp = this.__helper;
