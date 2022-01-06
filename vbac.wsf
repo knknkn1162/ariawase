@@ -31,7 +31,6 @@ Options:
                     (default: src)
   /vbaproj          Use .vbaproj file
   /dbcompact        With Access DB compaction
-  /target office           Specify run macro file
   /entrypoint func       macro entrypoint(default: main)
 </resource>
 <script language="JScript">
@@ -220,7 +219,7 @@ CmdParam.prototype.parse = function(args) {
     return this.parameters;
 };
 
-var Config = function(binary, source, target, binbak) {
+var Config = function(binary, source, binbak) {
     // validation
     if(!fso.FileExists(binary)) {
         println("[ERROR] /binary doesn't exist!");
@@ -238,7 +237,6 @@ var Config = function(binary, source, target, binbak) {
     var root = currentDirectory;
     this.bin = fso.BuildPath(root, binary);
     this.src = (isPathRooted(source)) ? source : fso.BuildPath(root, source);
-    this.target = (isPathRooted(target)) ? target : fso.BuildPath(root, target)
     this.bak = (!binbak.flag) ? undefined
              : (isPathRooted(binbak.value)) ? binbak.value
              : fso.BuildPath(root, binbak.value);
@@ -1077,8 +1075,8 @@ Command.prototype.clear = function() {
 Command.prototype.run = function() {
     var hlp = this.__helper;
     var conf = hlp.config;
-    var office = hlp.createOffice(conf.target);
-    office.run(conf.target);
+    var office = hlp.createOffice(conf.bin);
+    office.run(conf.bin);
 };
 Command.prototype.acdoc = function() {
     var hlp  = this.__helper;
@@ -1103,7 +1101,7 @@ Command.prototype.acdoc = function() {
 
 var CommandHelper = function(param) {
     this.parameter = param;
-    this.config  = new Config(param.binary, param.source, param.target, param.binbak);
+    this.config  = new Config(param.binary, param.source, param.binbak);
     this.command = new Command(this);
 };
 CommandHelper.prototype.getAppName = function(fname) {
@@ -1183,9 +1181,9 @@ function main(args) {
         new CmdParam({
             defaultParameterName: "commandType",
             commandType: "help",
+            // not dir
             binary:      "bin",
             source:      "src",
-            target:      "dummy",
             entrypoint:  "main",
             binbak:      new Conditional("bak"),
             vbaproj:     false,
