@@ -225,7 +225,7 @@ var Config = function(binary, source, target, binbak) {
     var root = currentDirectory;
     this.bin = (isPathRooted(binary)) ? binary : fso.BuildPath(root, binary);
     this.src = (isPathRooted(source)) ? source : fso.BuildPath(root, source);
-    this.target = (isPathRooted(target)) ? tareget : fso.BuildPath(root, target)
+    this.target = (isPathRooted(target)) ? target : fso.BuildPath(root, target)
     this.bak = (!binbak.flag) ? undefined
              : (isPathRooted(binbak.value)) ? binbak.value
              : fso.BuildPath(root, binbak.value);
