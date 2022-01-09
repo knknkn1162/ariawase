@@ -704,7 +704,7 @@ Excel.prototype.run = function(path) {
         xlApp.run(entrypoint)
 	println("end macro. Press key..") 
 	WScript.StdIn.ReadLine();
-    } finally { if (xlBook != null) xlBook.Close(); }
+    } finally { if (xlBook != null) xlBook.Close(saveChanges=false); }
     } finally { if (xlApp  != null) xlApp.Quit();   }
 
     return ret;
