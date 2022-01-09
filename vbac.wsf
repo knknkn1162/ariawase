@@ -461,28 +461,28 @@ Office.prototype.exportSource = function(ofDoc, expdir) {
         var xname = self.typeExtensionTable[compo.Type.toString()];
         var bname = compo.Name;
         var fname = bname + "." + xname;
-	var tmppath = fso.BuildPath(expdir, fname + '.tmp');
-	var path = fso.BuildPath(expdir, fname);
+        var tmppath = fso.BuildPath(expdir, fname + '.tmp');
+        var path = fso.BuildPath(expdir, fname);
         compo.Export(tmppath);
 
         // filter Attribute VB_**
-	// See also https://github.com/decalage2/oletools/blob/v0.60/oletools/olevba.py#L2138
-	var flr = fso.OpenTextFile(tmppath, forReading);
-	var flw = fso.OpenTextFile(path, forWriting, create=true);
-	var checkLine = function(line) {
-	    return (line.substring(0, 13) == 'Attribute VB_') && (line.match(':') == null);
-	}
-	while (!flr.AtEndOfStream) {
+    // See also https://github.com/decalage2/oletools/blob/v0.60/oletools/olevba.py#L2138
+        var flr = fso.OpenTextFile(tmppath, forReading);
+        var flw = fso.OpenTextFile(path, forWriting, create=true);
+        var checkLine = function(line) {
+            return (line.substring(0, 13) == 'Attribute VB_') && (line.match(':') == null);
+        }
+        while (!flr.AtEndOfStream) {
             var line = flr.ReadLine();
-	    if(checkLine(line)) {
-		continue;
-	    } else {
-		flw.writeLine(line);
-	    }
-	}
-	flr.Close();
-	fso.DeleteFile(tmppath);
-	flw.Close();
+            if(checkLine(line)) {
+                continue;
+            } else {
+                flw.writeLine(line);
+            }
+        }
+        flr.Close();
+        fso.DeleteFile(tmppath);
+        flw.Close();
         println("- Export: " + fname);
         if (xname == 'frm') println("- Export: " + bname + ".frx");
     });
@@ -696,14 +696,14 @@ Excel.prototype.run = function(path) {
         xlApp = new ActiveXObject(this.getProgID());
         xlApp.DisplayAlerts = false;
         xlApp.EnableEvents  = false;
-	xlApp.Visible = true;
+        xlApp.Visible = true;
     try {
         xlBook = (isCreate) ? this.createOpenFile(xlApp, path) : xlApp.Workbooks.Open(path);;
         this.checkMacroSecurity(xlBook);
         println("run macro:" + entrypoint)
         xlApp.run(entrypoint)
-	println("end macro. Press key..") 
-	WScript.StdIn.ReadLine();
+        println("end macro. Press key..")
+        WScript.StdIn.ReadLine();
     } finally { if (xlBook != null) xlBook.Close(saveChanges=false); }
     } finally { if (xlApp  != null) xlApp.Quit();   }
 
