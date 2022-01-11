@@ -700,10 +700,14 @@ Excel.prototype.run = function(path) {
     try {
         xlBook = (isCreate) ? this.createOpenFile(xlApp, path) : xlApp.Workbooks.Open(path);;
         this.checkMacroSecurity(xlBook);
-        println("run macro:" + entrypoint)
-        xlApp.run(entrypoint)
-        println("end macro. Press key..")
-        WScript.StdIn.ReadLine();
+        while(1) {
+            println("run macro:" + entrypoint)
+            xlApp.run(entrypoint)
+            println("end macro. run again? [y/n](default: n)")
+            var input = WScript.StdIn.ReadLine();
+            if(input === "y") continue;
+            break;
+        }
     } finally { if (xlBook != null) xlBook.Close(saveChanges=false); }
     } finally { if (xlApp  != null) xlApp.Quit();   }
 
