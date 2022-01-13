@@ -1049,25 +1049,20 @@ Command.prototype.combine = function() {
         fso.CopyFile(conf.bin, bkdir + "\\");
     }
 
-    var subdir = fso.BuildPath(conf.src, fso.GetFileName(conf.bin))
     // if input source does not exists, early return
-    if(!fso.FolderExists(subdir)) {
+    if(!fso.FolderExists(conf.src)) {
         println("[ERROR] input sources are empty!");
         WScript.Quit(2);
     }
 
     var office  = hlp.createOffice(conf.bin);
-    office.combine(subdir, conf.bin);
+    office.combine(conf.src, conf.bin);
 };
 Command.prototype.decombine = function() {
     var hlp  = this.__helper;
     var conf = hlp.config;
-    // create
-    var subdir = fso.BuildPath(conf.src, fso.GetFileName(conf.bin))
-    if(!fso.FolderExists(subdir)) fso.CreateFolder(subdir);
-
     var office  = hlp.createOffice(conf.bin);
-    office.decombine(conf.bin, subdir);
+    office.decombine(conf.bin, conf.src);
 };
 Command.prototype.clear = function() {
     var hlp  = this.__helper;
