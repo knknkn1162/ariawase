@@ -713,7 +713,9 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
     var exportAsPdf = function(sht, filename) {
         println("capture sheet: " + sht.Name + ", path: " + filename);
         sht.PageSetup.Orientation = xlLandscape;
-        sht.PageSetup.PrintArea = sht.UsedRange.Address;
+        // Set this property to False or to the empty string ("") to set the print area to the entire sheet.
+        // See also https://docs.microsoft.com/en-us/office/vba/api/excel.pagesetup.printarea
+        sht.PageSetup.PrintArea = false;
         sht.PageSetup.Zoom = 80
         sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
     }
