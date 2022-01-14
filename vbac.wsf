@@ -712,7 +712,7 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
     var entrypoint = self.cmdParam.entrypoint;
     var exportAsPdf = function(sht, filename) {
         println("capture sheet: " + sht.Name + ", path: " + filename);
-        sht.PageSetup = xlLandscape;
+        sht.PageSetup.Orientation = xlLandscape;
         sht.PageSetup.PrintArea = sht.UsedRange.Address;
         sht.PageSetup.Zoom = 80
         sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
