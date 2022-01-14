@@ -29,6 +29,7 @@ Options:
   /binary:&lt;file&gt;     Specify macro-enabled Office files
   /source:&lt;dir&gt;     Specify directory of source code files
                     (default: src)
+  /cap_dir          Speficy capture directory in running macro
   /vbaproj          Use .vbaproj file
   /dbcompact        With Access DB compaction
   /entrypoint func       macro entrypoint(default: main)
@@ -77,6 +78,14 @@ var vbext_ct_StdModule   = 1;
 var vbext_ct_ClassModule = 2;
 var vbext_ct_MSForm      = 3;
 var vbext_ct_Document    = 100;
+
+// XLFixedFormatType (ref: https://docs.microsoft.com/ja-jp/office/vba/api/excel.xlfixedformattype)
+var xlTypePDF = 0;
+var xlTypeXPS = 1;
+
+// XlPageOrientation (ref: https://docs.microsoft.com/ja-jp/office/vba/api/excel.xlpageorientation)
+var xlLandscape = 2;
+var xlPortrait = 1;
 
 // FileSystemObject (ref: http://msdn.microsoft.com/en-us/library/hww8txat%28v=vs.84%29.aspx)
 var fso = WScript.CreateObject("Scripting.FileSystemObject");
@@ -219,7 +228,11 @@ CmdParam.prototype.parse = function(args) {
     return this.parameters;
 };
 
-var Config = function(binary, source, binbak) {
+var Config = function(param) {
+    var binary = param.binary
+    var source = param.source
+    var cap_dir = param.cap_dir;
+    var binbak = param.binbak
     // validation
     if(!fso.FileExists(binary)) {
         println("[ERROR] /binary doesn't exist!");
@@ -233,10 +246,15 @@ var Config = function(binary, source, binbak) {
         println("[ERROR] /source must be folder");
         WScript.Quit(1);
     }
+    if(param.commandType === "run" && fso.FileExists(cap_dir)) {
+        println("[ERROR] /cap_dir must be folder")
+    }
 
     var root = currentDirectory;
     this.bin = (isPathRooted(binary)) ? binary : fso.BuildPath(root, binary);
     this.src = (isPathRooted(source)) ? source : fso.BuildPath(root, source);
+    this.isCapture = (cap_dir !== "");
+    this.cap_dir = (isPathRooted(cap_dir)) ? cap_dir : fso.BuildPath(root, cap_dir);
     this.bak = (!binbak.flag) ? undefined
              : (isPathRooted(binbak.value)) ? binbak.value
              : fso.BuildPath(root, binbak.value);
@@ -687,11 +705,26 @@ Excel.prototype.loanOfOfficeDocument = function(path, isCreate, callback) {
     
     return ret;
 };
-Excel.prototype.run = function(path) {
+Excel.prototype.run = function(path, isCapture, cap_path) {
     var xlApp, xlBook, ret;
     var self = this;
     var isCreate = false;
     var entrypoint = self.cmdParam.entrypoint;
+    var exportAsPdf = function(sht, filename) {
+        println("capture sheet: " + sht.Name + ", path: " + filename);
+        sht.PageSetup = xlLandscape;
+        sht.PageSetup.PrintArea = sht.UsedRange.Address;
+        sht.PageSetup.Zoom = 80
+        sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
+    }
+    var capSheets = function(wb, path, prefix) {
+        var i;
+        for(i = 0; i < wb.Sheets.Count; i++) {
+            var sht = xlBook.sheets(i+1);
+            exportAsPdf(sht, path + "/" + sht.Name + "_" + prefix + ".pdf");
+        }
+    }
+
     try {
         xlApp = new ActiveXObject(this.getProgID());
         xlApp.DisplayAlerts = false;
@@ -700,10 +733,15 @@ Excel.prototype.run = function(path) {
     try {
         xlBook = (isCreate) ? this.createOpenFile(xlApp, path) : xlApp.Workbooks.Open(path);;
         this.checkMacroSecurity(xlBook);
+        var flag = isCapture
         while(1) {
-            println("run macro:" + entrypoint)
-            xlApp.run(entrypoint)
-            println("end macro. run again? [y/n](default: n)")
+            println("run macro:" + entrypoint);
+            if(isCapture) capSheets(xlBook, cap_path, "before");
+            xlApp.run(entrypoint);
+            if(isCapture) capSheets(xlBook, cap_path, "after");
+            // stop capture after the second time
+            isCapture = false
+            println("end macro. run again? [y/n](default: n)");
             var input = WScript.StdIn.ReadLine();
             if(input === "y") continue;
             break;
@@ -713,6 +751,7 @@ Excel.prototype.run = function(path) {
 
     return ret;
 }
+
 Excel.prototype.importDocument = function(path, xlBook) {
     var compos = xlBook.VBProject.VBComponents;
     var impCompo = compos.Import(path);
@@ -1074,7 +1113,7 @@ Command.prototype.run = function() {
     var hlp = this.__helper;
     var conf = hlp.config;
     var office = hlp.createOffice(conf.bin);
-    office.run(conf.bin);
+    office.run(conf.bin, conf.isCapture, conf.cap_dir);
 };
 Command.prototype.acdoc = function() {
     var hlp  = this.__helper;
@@ -1099,7 +1138,7 @@ Command.prototype.acdoc = function() {
 
 var CommandHelper = function(param) {
     this.parameter = param;
-    this.config  = new Config(param.binary, param.source, param.binbak);
+    this.config  = new Config(param);
     this.command = new Command(this);
 };
 CommandHelper.prototype.getAppName = function(fname) {
@@ -1182,6 +1221,7 @@ function main(args) {
             // not dir
             binary:      "bin",
             source:      "src",
+            cap_dir:     "",
             entrypoint:  "main",
             binbak:      new Conditional("bak"),
             vbaproj:     false,
