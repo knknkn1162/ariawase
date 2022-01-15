@@ -717,7 +717,14 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
         // See also https://docs.microsoft.com/en-us/office/vba/api/excel.pagesetup.printarea
         sht.PageSetup.PrintArea = false;
         sht.PageSetup.Zoom = 80
-        sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
+        try {
+            sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
+        } catch(e) {
+            WScript.StdErr.WriteLine(e.name + ": " + e.message);
+            WScript.StdErr.WriteLine("[WARNING] Retry with the condition: PrintArea=sheet.UsedRange.Address")
+            sht.PageSetup.PrintArea = sht.UsedRange.Address;
+            sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
+        }
     }
     var capSheets = function(wb, path, prefix) {
         var i;
