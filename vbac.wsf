@@ -730,7 +730,12 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
         var i;
         for(i = 0; i < wb.Sheets.Count; i++) {
             var sht = xlBook.sheets(i+1);
-            exportAsPdf(sht, path + "/" + sht.Name + "_" + prefix + ".pdf");
+            var fname = fso.GetBaseName(wb.Name) + "_" +
+                sht.Name + "_" + prefix + "_" + entrypoint + ".pdf"
+            exportAsPdf(
+                sht,
+                path + "/" + fname
+            );
         }
     }
 
