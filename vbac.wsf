@@ -33,6 +33,7 @@ Options:
   /vbaproj          Use .vbaproj file
   /dbcompact        With Access DB compaction
   /entrypoint func       macro entrypoint(default: main)
+  /debug            Display settings
 </resource>
 <script language="JScript">
 <![CDATA[
@@ -710,6 +711,7 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
     var self = this;
     var isCreate = false;
     var entrypoint = self.cmdParam.entrypoint;
+    var debug = self.cmdParam.debug;
     var exportAsPdf = function(sht, filename) {
         println("capture sheet: " + sht.Name + ", path: " + filename);
         sht.PageSetup.Orientation = xlLandscape;
@@ -741,9 +743,12 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
 
     try {
         xlApp = new ActiveXObject(this.getProgID());
+
         xlApp.DisplayAlerts = false;
         xlApp.EnableEvents  = false;
-        xlApp.Visible = true;
+        if (debug) {
+            xlApp.Visible = true;
+        }
     try {
         xlBook = (isCreate) ? this.createOpenFile(xlApp, path) : xlApp.Workbooks.Open(path);;
         this.checkMacroSecurity(xlBook);
@@ -1240,7 +1245,8 @@ function main(args) {
             binbak:      new Conditional("bak"),
             vbaproj:     false,
             incQuery:    false,
-            dbCompact:   false
+            dbCompact:   false,
+            debug:       false
         })
         .parse(args);
     
