@@ -88,6 +88,11 @@ var xlTypeXPS = 1;
 var xlLandscape = 2;
 var xlPortrait = 1;
 
+// XlSheetVisibility (ref: https://docs.microsoft.com/ja-jp/office/vba/api/excel.xlsheetvisibility)
+var xlSheetHidden = 0
+var xlSheetVeryHidden = 1
+var xlSheetVisible = -1
+
 // FileSystemObject (ref: http://msdn.microsoft.com/en-us/library/hww8txat%28v=vs.84%29.aspx)
 var fso = WScript.CreateObject("Scripting.FileSystemObject");
 var shellobj = WScript.CreateObject("WScript.Shell");
@@ -719,15 +724,18 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
         // See also https://docs.microsoft.com/en-us/office/vba/api/excel.pagesetup.printarea
         sht.PageSetup.PrintArea = false;
         sht.PageSetup.Zoom = 80
+        // If not visible, exportAsFixedFormat raises TypeError Exception
+        sht.Visible = xlSheetVisible
         try {
             sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
         } catch(e) {
             WScript.StdErr.WriteLine(e.name + ": " + e.message);
-            WScript.StdErr.WriteLine("[WARNING] Retry with the condition: PrintArea=sheet.UsedRange.Address")
+            WScript.StdErr.WriteLine("[WARNING] Retry with the condition: PrintArea=sheet.UsedRange.Address: " + sht.UsedRange.Address);
             sht.PageSetup.PrintArea = sht.UsedRange.Address;
             sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
         }
     }
+
     var capSheets = function(wb, path, prefix) {
         var i;
         for(i = 0; i < wb.Sheets.Count; i++) {
