@@ -760,9 +760,11 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
             if(isCapture) capSheets(xlBook, cap_path, "after");
             // stop capture after the second time
             isCapture = false
-            println("end macro. run again? [y/n](default: n)");
-            var input = WScript.StdIn.ReadLine();
-            if(input === "y") continue;
+            if (debug) {
+                println("end macro. run again? [y/n](default: n)");
+                var input = WScript.StdIn.ReadLine();
+                if(input === "y") continue;
+            }
             break;
         }
     } finally { if (xlBook != null) xlBook.Close(saveChanges=false); }
