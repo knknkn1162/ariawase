@@ -732,8 +732,11 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
         var i;
         for(i = 0; i < wb.Sheets.Count; i++) {
             var sht = xlBook.sheets(i+1);
+            // use Sheet number instead of Sheet.Name
+            // because make command cannot parse Japanese word
             var fname = fso.GetBaseName(wb.Name) + "_" +
-                sht.Name + "_" + prefix + "_" + entrypoint + ".pdf"
+                "Sheet" + ('00'+i).slice(-2) +
+                "_" + prefix + "_" + entrypoint + ".pdf"
             exportAsPdf(
                 sht,
                 path + "/" + fname
