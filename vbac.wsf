@@ -711,6 +711,42 @@ Excel.prototype.loanOfOfficeDocument = function(path, isCreate, callback) {
     
     return ret;
 };
+
+var ExcelPrinter = function(sheet, filename) {
+    this.sheet = sheet;
+    this.filename = filename;
+    this.origSettings = {
+        Orientation: sheet.PageSetup.Orientation,
+        PrintArea: sheet.PageSetup.PrintArea,
+        Zoom: sheet.PageSetup.Zoom,
+        Visible: sheet.Visible
+    };
+};
+ExcelPrinter.prototype.cloneSettings = function(settings) {
+    return {
+        Orientation: settings.Orientation,
+        PrintArea: settings.PrintArea,
+        Zoom: settings.Zoom,
+        Visible: settings.Visible
+    };
+}
+ExcelPrinter.prototype.changeSettings = function(settings) {
+    var self = this;
+    var sheet = self.sheet;
+    var orig = self.cloneSettings(self.origSettings);
+    self.origSettings = self.cloneSettings(settings);
+    sheet.PageSetup.Orientation = settings.Orientation;
+    sheet.PageSetup.PrintArea = settings.PrintArea;
+    sheet.PageSetup.Zoom = settings.Zoom;
+    sheet.Visible = settings.Visible;
+    return orig;
+};
+
+ExcelPrinter.prototype.createpdf = function(filename) {
+    var self = this;
+    self.sheet.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
+};
+
 Excel.prototype.run = function(path, isCapture, cap_path) {
     var xlApp, xlBook, ret;
     var self = this;
@@ -718,23 +754,30 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
     var entrypoint = self.cmdParam.entrypoint;
     var debug = self.cmdParam.debug;
     var exportAsPdf = function(sht, filename) {
-        println("capture sheet: " + sht.Name + ", path: " + filename);
-        sht.PageSetup.Orientation = xlLandscape;
-        // Set this property to False or to the empty string ("") to set the print area to the entire sheet.
-        // See also https://docs.microsoft.com/en-us/office/vba/api/excel.pagesetup.printarea
-        sht.PageSetup.PrintArea = false;
-        sht.PageSetup.Zoom = 80
-        // If not visible, exportAsFixedFormat raises TypeError Exception
-        sht.Visible = xlSheetVisible
+        println("[INFO] capture sheet: " + sht.Name + ", path: " + filename);
+        var printer = new ExcelPrinter(sht, filename);
+        var settings = {
+            Orientation: xlLandscape,
+            // Set this property to False or to the empty string ("") to set the print area to the entire sheet. See also https://docs.microsoft.com/en-us/office/vba/api/excel.pagesetup.printarea
+            PrintArea: false,
+            Zoom: 80,
+            // if not visible, exportasfixedformat raises typeerror exception
+            Visible: xlSheetVisible
+        };
+        var origSettings = printer.changeSettings(settings);
         try {
-            sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
+            printer.createpdf(filename);
         } catch(e) {
             WScript.StdErr.WriteLine(e.name + ": " + e.message);
             WScript.StdErr.WriteLine("[WARNING] Retry with the condition: PrintArea=sheet.UsedRange.Address: " + sht.UsedRange.Address);
-            sht.PageSetup.PrintArea = sht.UsedRange.Address;
-            sht.exportAsFixedFormat(type=xlTypePDF, fileName=filename, openAfterPublish=false);
+            settings.PrintArea = sht.UsedRange.Address;
+            printer.changeSettings(settings);
+            printer.createpdf(filename);
+        } finally {
+            // restore settings
+            printer.changeSettings(origSettings);
         }
-    }
+    };
 
     var capSheets = function(wb, path, prefix) {
         var i;
