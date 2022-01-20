@@ -800,6 +800,7 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
 
         xlApp.DisplayAlerts = false;
         xlApp.EnableEvents  = false;
+        xlApp.AskToUpdateLinks = false;
         if (debug) {
             xlApp.Visible = true;
         }
