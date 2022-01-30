@@ -798,8 +798,8 @@ Excel.prototype.run = function(path, isCapture, cap_path) {
     try {
         xlApp = new ActiveXObject(this.getProgID());
 
-        xlApp.DisplayAlerts = false;
-        xlApp.EnableEvents  = false;
+        //xlApp.DisplayAlerts = false;
+        //xlApp.EnableEvents  = false;
         xlApp.AskToUpdateLinks = false;
         if (debug) {
             xlApp.Visible = true;
